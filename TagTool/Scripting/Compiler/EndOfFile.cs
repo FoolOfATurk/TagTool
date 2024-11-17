@@ -4,7 +4,11 @@
     {
         public int Line { get; set; }
 
-        public override string ToString() =>
-            $"EndOfFile {{ Line: {Line} }}";
-    }
+		public override string ToString() {
+			// old version
+			// return $"EndOfFile {{ Line: {Line} }}";
+			// JSON version
+			return $"{{ \"EOF_Line\": {Line} }}";
+		}
+	}
 }

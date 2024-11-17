@@ -2,6 +2,7 @@ using TagTool.Tags;
 using System.Collections.Generic;
 using TagTool.Cache;
 using TagTool.Common;
+using System.Linq;
 
 namespace TagTool.Scripting
 {
@@ -18,5 +19,13 @@ namespace TagTool.Scripting
         public HsType ReturnType;
         public DatumHandle RootExpressionHandle;
         public List<HsScriptParameter> Parameters;
-    }
+
+		/// <summary>
+		/// Returns a string representation of the script. Uses HaloOnline Values.
+		/// </summary>
+		public override string ToString() {
+			return $"[{Type} {HsType.GetString(ReturnType)} '{ScriptName ?? "UNPARSED"}' {string.Join(" ", Parameters?.Select(p => p.ToString() ?? string.Empty))}]";
+		}
+
+	}
 }

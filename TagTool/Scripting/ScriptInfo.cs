@@ -14,7 +14,11 @@ namespace TagTool.Scripting
         public int Count => Parameters.Count;
         public bool IsReadOnly => false;
 
-        public ScriptInfo(HsType.HaloOnlineValue type) : this(type, "") { }
+        public override string ToString() { 
+            return $"( {Type} '{Name ?? string.Empty}' {string.Join(" ", Parameters?.Select(p => p.ToString() ?? string.Empty))})"; 
+        }
+
+		public ScriptInfo(HsType.HaloOnlineValue type) : this(type, "") { }
 
         public ScriptInfo(HsType.HaloOnlineValue type, string name) : this(type, name, new List<ParameterInfo>()) { }
 
@@ -50,7 +54,10 @@ namespace TagTool.Scripting
                 Type = type;
                 Name = name;
             }
-        }
+
+			public override string ToString() => $"<{Type} '{Name ?? "_"}'>";
+
+		}
         public static int GetScriptExpressionDataLength(HsSyntaxNode expr)
         {
             switch (expr.Flags)
@@ -1872,7 +1879,16 @@ namespace TagTool.Scripting
             }
         };
 
-        public static Dictionary<(CacheVersion, CachePlatform), Dictionary<int, ScriptInfo>> Scripts { get; } = new Dictionary<(CacheVersion, CachePlatform), Dictionary<int, ScriptInfo>>
+        public static Dictionary<int, string> ED_OpCodes = Globals[(CacheVersion.HaloOnlineED, CachePlatform.Original)];
+        public static string ED_GetOpCodeName(ushort opcode) {
+            if (ED_OpCodes.TryGetValue(opcode, out string name)) {
+                return name;
+            }
+            else {
+                return "INVALID";
+            }
+        }
+		public static Dictionary<(CacheVersion, CachePlatform), Dictionary<int, ScriptInfo>> Scripts { get; } = new Dictionary<(CacheVersion, CachePlatform), Dictionary<int, ScriptInfo>>
         {
             [(CacheVersion.Halo3Retail, CachePlatform.Original)] = new Dictionary<int, ScriptInfo>
             {

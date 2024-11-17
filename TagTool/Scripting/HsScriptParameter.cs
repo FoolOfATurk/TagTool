@@ -1,4 +1,4 @@
-using TagTool.Tags;
+﻿using TagTool.Tags;
 
 namespace TagTool.Scripting
 {
@@ -9,5 +9,11 @@ namespace TagTool.Scripting
         public string Name;
         public HsType Type;
         public short Unknown;
-    }
+
+		// Informative ToString Implementation
+		public override string ToString() {
+			return $"<{Type?.HaloOnline ?? HsType.HaloOnlineValue.Unparsed} {Name ?? "⁇"}>";
+		}
+
+	}
 }

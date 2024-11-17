@@ -4,7 +4,11 @@
     {
         public int Line { get; set; }
 
-        public override string ToString() =>
-            $"ScriptBoolean {{ Line: {Line} }}";
-    }
+		public override string ToString() {
+			// old version
+			//return $"ScriptBoolean {{ Line: {Line} }}";
+			// JSON version
+			return $"{{ \"INVALID_Line\": {Line} }}";
+		}
+	}
 }

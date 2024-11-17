@@ -1,3 +1,4 @@
+using Assimp;
 using TagTool.Cache;
 using TagTool.Tags;
 
@@ -17,6 +18,25 @@ namespace TagTool.Scripting
 
         [TagField(MinVersion = CacheVersion.HaloReach)]
         public HaloReachValue HaloReach;
+
+
+        public bool IsObject {
+            get {
+                switch (HaloOnline) {
+                    case HaloOnlineValue.Object:
+                    case HaloOnlineValue.ObjectList:
+					case HaloOnlineValue.Device:
+					case HaloOnlineValue.EffectScenery:
+					case HaloOnlineValue.Scenery:
+					case HaloOnlineValue.Weapon:
+					case HaloOnlineValue.Unit:
+					case HaloOnlineValue.Vehicle:
+						return true;
+					default:
+						return false;
+				}
+            }
+        }
 
         public enum Halo3RetailValue : ushort
         {
@@ -289,5 +309,16 @@ namespace TagTool.Scripting
         {
             //empty for now
         }
-    }
+
+		/// <summary>
+		/// Returns a string representation of the HsType.
+		/// </summary>
+		public override string ToString() { return $"{HaloOnline}"; }
+
+		/// <summary>
+		/// Returns a string representation of the HsType or "UNKNOWN" if the argument is null.
+		/// </summary>
+		public static string GetString(HsType t) { return t?.ToString() ?? "UNKNOWN"; }
+
+	}
 }

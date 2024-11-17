@@ -6,7 +6,11 @@
 
         public int Line { get; set; }
 
-        public override string ToString() =>
-            $"ScriptInteger {{ Line: {Line}, Value: {Value} }}";
-    }
+		public override string ToString() {
+			// old version
+			//return $"ScriptInteger {{ Line: {Line}, Value: {Value} }}";
+			// JSON version
+			return $"{{ \"({Line}) INT\": {Value} }}";
+		}
+	}
 }
