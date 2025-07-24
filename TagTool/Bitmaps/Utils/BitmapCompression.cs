@@ -7,6 +7,13 @@ using TagTool.Cache;
 
 namespace TagTool.Bitmaps
 {
+    public enum CompressionQuality
+    {
+        Default,
+        Low,
+        High,
+    }
+
     public static class BitmapCompression
     {
         public static byte[] Decompress(byte[] compressedData, int width, int height, BitmapFormat format, CacheVersion version, CachePlatform platform)
@@ -14,7 +21,7 @@ namespace TagTool.Bitmaps
             return Decompress(compressedData, width, height, GetBlockDecompresor(format, version, platform));
         }
 
-        public static byte[] Compress(byte[] data, int width, int height, BitmapFormat format)
+        public static byte[] Compress(byte[] data, int width, int height, BitmapFormat format, CompressionQuality quality)
         {
             Debug.Assert((width * height * 4) == data.Length);
 
@@ -29,32 +36,10 @@ namespace TagTool.Bitmaps
                 case BitmapFormat.Dxt5:
                     return Compress(SquishLib.SquishFlags.kDxt5, data, width, height);
                 case BitmapFormat.Dxt5nm:
-                    return CompressDXT5nm(data, width, height);
+                    return CompressDXT5nm(data, width, height, quality);
                 default:
                     throw new NotSupportedException($"Unsupported bitmap format {format}");
             }
-        }
-
-
-        private delegate void BlockDecompressor(byte[] compressedData, int blockX, int blockY, int width, int height, byte[] decompressedData);
-
-        private unsafe static byte[] CompressDXT5nm(byte[] data, int width, int height)
-        {
-            byte[] buffer = new byte[data.Length];
-            fixed (byte* src = data)
-            fixed (byte* dest = buffer)
-            {
-                for (int i = 0; i < data.Length; i += 4)
-                {
-                    byte y = src[i + 1];
-                    byte x = src[i + 2];
-                    dest[i + 0] = y;
-                    dest[i + 1] = y;
-                    dest[i + 2] = y;
-                    dest[i + 3] = x;
-                }
-            }
-            return Compress(SquishLib.SquishFlags.kDxt5, buffer, width, height);
         }
 
         private static byte[] Compress(SquishLib.SquishFlags flags, byte[] data, int width, int height)
@@ -62,6 +47,74 @@ namespace TagTool.Bitmaps
             flags |= SquishLib.SquishFlags.kColourIterativeClusterFit | SquishLib.SquishFlags.kSourceBgra;
             return new SquishLib.Compressor(flags, data, width, height).CompressTexture();
         }
+
+        private static unsafe byte[] CompressDXT5nm(byte[] data, int width, int height, CompressionQuality quality)
+        {
+            if (quality < CompressionQuality.High)
+            {
+                byte[] buffer = new byte[data.Length];
+                fixed (byte* src = data)
+                fixed (byte* dest = buffer)
+                {
+                    for (int i = 0; i < data.Length; i += 4)
+                    {
+                        byte g = src[i + 1];
+                        byte r = src[i + 2];
+                        dest[i + 0] = g;
+                        dest[i + 1] = g;
+                        dest[i + 2] = g;
+                        dest[i + 3] = r;
+                    }
+                }
+                return Compress(SquishLib.SquishFlags.kDxt5, buffer, width, height);
+            }
+
+            int blockCountX = (width + 3) >> 2;
+            int blockCountY = (height + 3) >> 2;
+            int blockCount = blockCountX * blockCountY;
+
+            byte[] output = new byte[blockCount * 16];
+
+            Parallel.For(0, blockCount, blockIndex =>
+            {
+                Span<RGBAColor> colors = stackalloc RGBAColor[16];
+                Span<byte> alphas = stackalloc byte[16];
+
+                int bx = blockIndex % blockCountX;
+                int by = blockIndex / blockCountX;
+
+                int x = bx * 4;
+                int y = by * 4;
+
+                uint mask = 0;
+                for (int py = 0; py < 4; py++)
+                {
+                    for (int px = 0; px < 4; px++)
+                    {
+                        int destIndex = py * 4 + px;
+                        if (x + px < width && y + py < height)
+                        {
+                            int srcIndex = (x + px + width * (y + py)) * 4;
+                            byte b = data[srcIndex + 0];
+                            byte g = data[srcIndex + 1];
+                            byte r = data[srcIndex + 2];
+
+                            alphas[destIndex] = r;
+                            colors[destIndex] = new RGBAColor(g, g, g, 255);
+                            mask |= (1u << destIndex);
+                        }
+                    }
+                }
+
+                int blockOffset = (by * blockCountX + bx) * 16;
+                OptimalCompress.CompressDXT1G(colors, output.AsSpan(blockOffset + 8, 8), mask);
+                OptimalCompress.CompressDXT5A(alphas, output.AsSpan(blockOffset, 8), mask);
+            });
+
+            return output;
+        }
+
+        private delegate void BlockDecompressor(byte[] compressedData, int blockX, int blockY, int width, int height, byte[] decompressedData);
 
         private static BlockDecompressor GetBlockDecompresor(BitmapFormat format, CacheVersion version, CachePlatform platform)
         {
@@ -322,7 +375,7 @@ namespace TagTool.Bitmaps
                     byte r = alphas[alphaIndex];
                     byte g = colors[colorIndex].G;
 
-                    decompressedData[pixelIndex + 0] = CalculateNormalZ(r, g);
+                    decompressedData[pixelIndex + 0] = BitmapUtils.CalculateNormalZ(r, g);
                     decompressedData[pixelIndex + 1] = g;
                     decompressedData[pixelIndex + 2] = r;
                     decompressedData[pixelIndex + 3] = 255;
@@ -355,7 +408,7 @@ namespace TagTool.Bitmaps
                     byte g = greenValues[greenIndex];
                     if (swapXY) (r, g) = (g, r);
 
-                    decompressedData[pixelIndex + 0] = CalculateNormalZ(r, g); // Blue channel is 0 for BC5
+                    decompressedData[pixelIndex + 0] = BitmapUtils.CalculateNormalZ(r, g); // Blue channel is 0 for BC5
                     decompressedData[pixelIndex + 1] = g;
                     decompressedData[pixelIndex + 2] = r;
                     decompressedData[pixelIndex + 3] = 255; // Alpha channel is 255 (opaque)
@@ -466,8 +519,8 @@ namespace TagTool.Bitmaps
 
             if (signed)
             {
-                alpha0 = (byte)((((sbyte)alpha0 + 127) * 255) / 254);
-                alpha1 = (byte)((((sbyte)alpha1 + 127) * 255) / 254);
+                alpha0 += 128;
+                alpha1 += 128;
             }
 
             alphas[0] = alpha0;
@@ -528,23 +581,8 @@ namespace TagTool.Bitmaps
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe void CalculateNormalZ(RGBAColor* vector)
         {
-            vector->B = CalculateNormalZ(vector->R, vector->G);
+            vector->B = BitmapUtils.CalculateNormalZ(vector->R, vector->G);
             vector->A = 255;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static byte CalculateNormalZ(byte x, byte y)
-        {
-            float fx = ((x / 255f) * 2f) - 1f;
-            float fy = ((y / 255f) * 2f) - 1f;
-            float fz = CalculateNormalZ(fx, fy);
-            return (byte)((fz + 1f) / 2f * 255f);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float CalculateNormalZ(float x, float y)
-        {
-            return (float)Math.Sqrt(Math.Max(0.0, Math.Min(1.0, 1.0 - (x * x) - (y * y))));
         }
     }
 }

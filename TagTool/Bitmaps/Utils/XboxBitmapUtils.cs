@@ -364,6 +364,9 @@ namespace TagTool.Bitmaps
 
         public static byte[] GetXboxBitmapLevelData(byte[] primaryData, byte[] secondaryData, BitmapTextureInteropDefinition definition, int level, int layerIndex, bool isPaired, int pairIndex, BitmapTextureInteropDefinition otherDefinition)
         {
+            if (pairIndex > 0)
+                (definition, otherDefinition) = (otherDefinition, definition);
+
             byte[] data;
             uint levelOffset;
 

@@ -18,6 +18,7 @@ using TagTool.Commands.Forge;
 using TagTool.Cache.HaloOnline;
 using TagTool.Commands.Scenarios;
 using TagTool.Cache.Monolithic;
+using TagTool.Scripting.CSharp;
 
 namespace TagTool.Commands.Tags
 {
@@ -32,7 +33,7 @@ namespace TagTool.Commands.Tags
 
         public static void Populate(CommandContextStack contextStack, CommandContext context, GameCache cache, GameCache portingCache = null)
         {
-            context.ScriptGlobals.Add(ExecuteCSharpCommand.GlobalCacheKey, cache);
+            context.ScriptGlobals.Add(nameof(ScriptEvaluationContext.Cache), cache);
 
             context.AddCommand(new TestCommand(cache));
             context.AddCommand(new DumpLogCommand());
@@ -73,6 +74,7 @@ namespace TagTool.Commands.Tags
                 context.AddCommand(new SaveTagNamesCommand(hoCache));
                 context.AddCommand(new SaveModdedTagsCommand(hoCache));
                 context.AddCommand(new CreateTagCommand(hoCache));
+                context.AddCommand(new ReplaceTagCommand(hoCache));
                 context.AddCommand(new ImportTagCommand(hoCache));
                 context.AddCommand(new ImportLooseTagCommand(hoCache));
                 context.AddCommand(new TagResourceCommand(hoCache));
@@ -154,7 +156,6 @@ namespace TagTool.Commands.Tags
 
             // porting related
             context.AddCommand(new UseXSDCommand());
-            context.AddCommand(new UseAudioCacheCommand());
             context.AddCommand(new UseShaderCacheCommand());
             context.AddCommand(new OpenCacheFileCommand(contextStack, cache));
             context.AddCommand(new DiffTagCommand(cache, portingCache ?? cache));

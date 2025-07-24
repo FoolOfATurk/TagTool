@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using TagTool.IO;
+using TagTool.Scripting.CSharp;
 
 namespace TagTool.Commands.Common
 {
@@ -26,9 +24,17 @@ namespace TagTool.Commands.Common
         {
             // Evaluate c# expressions
 
-            commandLine = ExecuteCSharpCommand.EvaluateInlineExpressions(ContextStack, commandLine);
-            if (commandLine == null)
-                return null;
+            try
+            {
+                var evalContext = new ScriptEvaluationContext(ContextStack);
+                commandLine = ContextStack.ScriptEvaluator.EvaluateInlineExpressions(evalContext, commandLine);
+                if (commandLine == null)
+                    return null;
+            }
+            catch (Exception ex)
+            {
+                new TagToolError(CommandError.CustomError, $"{ex.Message}");
+            }
 
             // Allow inline comments beginning with "//"
 
